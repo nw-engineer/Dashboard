@@ -1,0 +1,13 @@
+version: '3'
+services:
+  api:
+    image: kibana-api:0.1
+    restart: always
+    build: .
+    container_name: 'kibana-api'
+    tty: true
+    volumes:
+      - ./work:/opt
+    ports:
+      - '4003:4003'
+      - '4004:4004'
