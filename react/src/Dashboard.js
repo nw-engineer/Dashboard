@@ -45,7 +45,7 @@ const Dashboard = () => {
   const [editingWidget, setEditingWidget] = useState(null);
 
   useEffect(() => {
-    axios.get('http://10.2.0.50:4004/api/load_dashboard')
+    axios.get(`${process.env.REACT_APP_API_URL}/api/load_dashboard`)
       .then(response => {
         setWidgets(response.data.widgets);
       })
@@ -58,7 +58,7 @@ const Dashboard = () => {
     const dashboardState = {
       widgets: widgets
     };
-    axios.post('http://10.2.0.50:4004/api/save_dashboard', dashboardState)
+    axios.post(`${process.env.REACT_APP_API_URL}/api/save_dashboard`, dashboardState)
       .then(response => {
         console.log(response.data.message);
       })
