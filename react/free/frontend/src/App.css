@@ -1,0 +1,241 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.App {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 2rem;
+  text-align: center;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  color: #111;
+}
+
+.dashboard {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* --- Sidebar (フォーム) --- */
+.sidebar {
+  flex: 1 1 320px;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.sidebar h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1.2rem;
+  text-align: center;
+  font-weight: 600;
+  color: #111;
+}
+
+.form input,
+.form textarea {
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.65rem;
+  font-size: 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  box-sizing: border-box;
+  transition: border 0.2s ease;
+}
+
+.form input:focus,
+.form textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.form button {
+  width: 100%;
+  padding: 0.75rem;
+  font-weight: 600;
+  background: linear-gradient(to right, #6366f1, #818cf8);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.form button:hover {
+  opacity: 0.9;
+}
+
+/* --- Main table --- */
+.main {
+  flex: 2 1 600px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+table th,
+table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+table th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+}
+
+table td:last-child {
+  text-align: center;
+}
+
+.detail-button {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.detail-button:hover {
+  background-color: #2563eb;
+}
+
+/* --- Modal --- */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background: white;
+  padding: 1.5rem 2rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 70vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.risk-report {
+  margin-top: 1.5rem;
+}
+
+.risk-report h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.risk-report-box {
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap; /* 改行を維持して表示 */
+  overflow-x: auto;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.btn-close {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #111827;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  margin-top: 1.5rem;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* --- Stars --- */
+.stars {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 1.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.star {
+  cursor: pointer;
+  color: #e5e7eb;
+  transition: color 0.2s ease;
+}
+
+.star.active {
+  color: #facc15;
+}
+
+/* --- Close btn --- */
+.modal-content button.close {
+  margin-top: 1.5rem;
+  background-color: #e5e7eb;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+/* --- Responsive --- */
+@media screen and (max-width: 768px) {
+  .dashboard {
+    flex-direction: column;
+  }
+}
+
