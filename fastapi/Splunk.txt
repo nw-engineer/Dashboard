@@ -1,0 +1,186 @@
+# Splunk: SID 方式（認証必須の環境向け）
+@app.tool()
+async def splunk_search_via_sid(
+    base_url: str,
+    query: str,
+    earliest: str = "-15m",
+    latest: str = "now",
+    output_mode: str = "json",
+    verify_ssl: bool = False,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    max_results: int = 2000,
+    page_size: int = 1000,
+    poll_interval_sec: float = 0.8,
+    poll_max_tries: int = 60,
+) -> Dict[str, Any]:
+    """
+    1) POST /services/search/jobs でSID発行（search='search <query> earliest=... latest=...'})
+    2) GET  /services/search/jobs/{sid}/results?output_mode=json&count=&offset=
+       をポーリングしながら結果を収集
+    """
+    # 1) search ステートメント組み立て
+    search_str = query.strip()
+    if not search_str.startswith("search "):
+        search_str = "search " + search_str
+    if "earliest=" not in search_str and earliest:
+        search_str = f"{search_str} earliest={earliest}"
+    if "latest=" not in search_str and latest:
+        search_str = f"{search_str} latest={latest}"
+
+    # 2) 認証
+    if not (username and password):
+        raise ValueError("SID方式は username/password（Basic認証）が必須です。")
+
+    auth = httpx.BasicAuth(username, password)
+
+    # 3) SID 発行
+    jobs_url = base_url.rstrip("/") + "/services/search/jobs"
+    form = {"search": search_str, "output_mode": output_mode}
+
+    async with _client(verify=verify_ssl) as c:
+        r = await c.post(jobs_url, data=form, auth=auth)
+        r.raise_for_status()
+        # SplunkはXML/JSON両方あり得るが、output_mode=json指定ならJSONが返る想定
+        try:
+            data = r.json()
+            sid = (data.get("sid") or data.get("data", {}).get("sid"))
+        except Exception:
+            # XML の場合を簡易に拾う
+            txt = r.text
+            m = re.search(r"<sid>([^<]+)</sid>", txt)
+            sid = m.group(1) if m else None
+        if not sid:
+            raise RuntimeError("SID を取得できませんでした。")
+
+        # 4) ポーリングしつつ results をページング取得
+        results_url = base_url.rstrip("/") + f"/services/search/jobs/{sid}/results"
+        items: List[Dict[str, Any]] = []
+
+        # まずはジョブの進行を軽く待つ（/results は完了前でも増分返る場合あり）
+        tries = 0
+        offset = 0
+        while tries < poll_max_tries and len(items) < max_results:
+            params = {
+                "output_mode": output_mode,
+                "count": str(min(page_size, max_results - len(items))),
+                "offset": str(offset),
+            }
+            rr = await c.get(results_url, params=params, auth=auth)
+            if rr.status_code == 204:
+                # まだ結果なし → 待つ
+                tries += 1
+                await asyncio.sleep(poll_interval_sec)
+                continue
+
+            # 200系はJSON行 or JSON配列
+            rr.raise_for_status()
+            obj = rr.json()
+
+            # JSON フォーマット差異を吸収
+            def _collect(o):
+                row = o.get("result", o)
+                if isinstance(row, dict):
+                    items.append(row)
+                elif isinstance(row, list):
+                    for x in row:
+                        if isinstance(x, dict):
+                            items.append(x)
+
+            if isinstance(obj, dict):
+                # events/results フォーマットのいずれでも拾えるように
+                if "results" in obj and isinstance(obj["results"], list):
+                    for x in obj["results"]:
+                        if isinstance(x, dict):
+                            items.append(x)
+                else:
+                    _collect(obj)
+            elif isinstance(obj, list):
+                for o in obj:
+                    if isinstance(o, (dict, list)):
+                        _collect(o)
+
+            if len(items) >= max_results:
+                break
+
+            # 追加ページに進める
+            got = min(page_size, len(items) - offset)
+            if got <= 0:
+                tries += 1
+                await asyncio.sleep(poll_interval_sec)
+            else:
+                offset += got
+                # 取り切れていなければ、すぐ次のページへ（軽い待機）
+                await asyncio.sleep(0.1)
+
+    return {"sid": sid, "count": len(items), "items": items[:max_results]}
+
+
+
+
+class State(TypedDict):
+    # Splunk
+    base_url: str
+    query: str
+    earliest: str
+    verify_ssl: bool
+    logs: List[Dict[str, Any]]
+
+    # ★ 追加: SID方式・認証・latest
+    splunk_use_sid: bool
+    splunk_username: Optional[str]
+    splunk_password: Optional[str]
+    latest: str
+
+
+
+
+async def fetch_logs(state: State) -> State:
+    if state.get("splunk_use_sid"):
+        out = await call_mcp("splunk_search_via_sid", {
+            "base_url": state["base_url"],
+            "query": state["query"],
+            "earliest": state.get("earliest", "-30m"),
+            "latest": state.get("latest", "now"),
+            "verify_ssl": state.get("verify_ssl", False),
+            "username": state.get("splunk_username"),
+            "password": state.get("splunk_password"),
+            "max_results": 2000,
+        })
+    else:
+        # 既存（export 方式）
+        out = await call_mcp("splunk_search", {
+            "base_url": state["base_url"],
+            "query": state["query"],
+            "earliest": state["earliest"],
+            "verify_ssl": state["verify_ssl"],
+            "max_results": 2000
+        })
+
+    items = [r for r in out.get("items", []) if isinstance(r, dict)]
+    state["logs"] = items
+    state["target_host"] = state.get("target_host") or _top_host(items)
+    print("[target_host]", state.get("target_host"))
+    return state
+
+
+
+
+
+async def main():
+    graph = build_graph()
+    result = await graph.ainvoke({
+        # Splunk
+        "base_url": "https://splunk.example.com:8089",
+        "query": "index=prod sourcetype=nginx_access error OR denied",
+        "earliest": "-30m",
+        "latest": "now",                 # ★ 追加
+        "verify_ssl": False,
+        "splunk_use_sid": True,          # ★ SID 方式を使う環境では True
+        "splunk_username": os.getenv("SPLUNK_USER"),   # ★ 追加
+        "splunk_password": os.getenv("SPLUNK_PASS"),   # ★ 追加
+        "logs": [],
+        "target_host": None,
+
+        # 以降は既存のまま…
+    })
