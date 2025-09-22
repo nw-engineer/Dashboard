@@ -1,0 +1,339 @@
+openapi: 3.0.3
+info:
+  title: Splunk Management REST API (with Auth)
+  version: "1.0.0"
+  description: |
+    Splunk の管理REST（主に Search Job 周り）向け OpenAPI 仕様。Basic 認証と Splunk トークンの両対応。
+    - Basic: `Authorization: Basic <base64(user:pass)>`
+    - Splunk Token: `Authorization: Splunk <token>`
+
+servers:
+  - url: https://{host}:{port}
+    description: Splunk Management Port (usually 8089)
+    variables:
+      host:
+        default: splunk.example.local
+        description: Splunk インスタンスのホスト名
+      port:
+        default: "8089"
+        description: 管理ポート（デフォルト 8089）
+
+security:
+  # どちらか満たせばOK（Dify等で片方のみ設定して使う想定）
+  - basicAuth: []
+  - splunkToken: []
+
+tags:
+  - name: Server
+    description: 接続確認など
+  - name: Search Jobs
+    description: サーチの作成・監視・結果取得
+
+paths:
+  /services/server/info:
+    get:
+      tags: [Server]
+      summary: サーバー情報の取得（疎通確認）
+      parameters:
+        - $ref: '#/components/parameters/output_mode'
+      responses:
+        '200':
+          description: サーバー情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagementResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /services/search/jobs:
+    post:
+      tags: [Search Jobs]
+      summary: サーチジョブの作成
+      description: |
+        新しいサーチを作成します。`exec_mode` により挙動が変わります（`normal|blocking|oneshot`）。
+      parameters:
+        - $ref: '#/components/parameters/output_mode'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [search]
+              properties:
+                search:
+                  type: string
+                  description: "検索式。（例: `search index=_internal | head 5`）"
+                earliest_time:
+                  type: string
+                  description: "（例: `-24h`, `2025-01-01T00:00:00`）"
+                latest_time:
+                  type: string
+                exec_mode:
+                  type: string
+                  enum: [normal, blocking, oneshot]
+                timeout:
+                  type: integer
+                  description: タイムアウト秒
+            examples:
+              normal:
+                value:
+                  search: "search index=_internal | stats count by sourcetype"
+                  exec_mode: "normal"
+                  output_mode: "json"
+      responses:
+        '201':
+          description: ジョブ作成（normal/blocking）。`sid` を含む管理応答。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagementResponse'
+        '200':
+          description: oneshot の場合は即時に結果が返ることがあります。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /services/search/jobs/{sid}:
+    get:
+      tags: [Search Jobs]
+      summary: サーチジョブのステータス取得
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/output_mode'
+      responses:
+        '200':
+          description: ジョブ状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagementResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Search Jobs]
+      summary: サーチジョブのキャンセル/削除
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/output_mode'
+      responses:
+        '200':
+          description: 削除結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagementResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /services/search/jobs/{sid}/results:
+    get:
+      tags: [Search Jobs]
+      summary: 最終結果の取得
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/output_mode'
+        - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/field_list'
+        - $ref: '#/components/parameters/search_post'
+        - $ref: '#/components/parameters/time_format'
+      responses:
+        '200':
+          description: 結果データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /services/search/jobs/{sid}/results_preview:
+    get:
+      tags: [Search Jobs]
+      summary: プレビュー結果の取得
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/output_mode'
+        - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: プレビュー結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /services/search/jobs/export:
+    post:
+      tags: [Search Jobs]
+      summary: Export（ストリーム実行）
+      description: 新規検索を即時実行し、結果をストリームで返します（ジョブ作成なし）。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [search]
+              properties:
+                search:
+                  type: string
+                  description: '例: `search index=main earliest=-15m | head 5`'
+                output_mode:
+                  type: string
+                  enum: [json, csv, xml]
+                  default: json
+                preview:
+                  type: string
+                  enum: ["true","false"]
+                  default: "false"
+                earliest_time:
+                  type: string
+                latest_time:
+                  type: string
+      responses:
+        '200':
+          description: 成功（ストリーム）。`output_mode` に応じた形式。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+            text/csv:
+              schema: { type: string }
+            application/xml:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    # Splunk のトークン形式は "Authorization: Splunk <token>"
+    splunkToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: '値は `Splunk <token>` の形式で入力してください。例: `Splunk 6dd4c1e2-...`'
+
+  parameters:
+    sid:
+      name: sid
+      in: path
+      required: true
+      description: Search ID
+      schema: { type: string }
+
+    output_mode:
+      name: output_mode
+      in: query
+      description: 出力形式
+      schema:
+        type: string
+        enum: [json, xml, csv]
+        default: json
+
+    count:
+      name: count
+      in: query
+      description: 取得件数（-1 で全件）
+      schema:
+        type: integer
+        default: 100
+        minimum: -1
+
+    offset:
+      name: offset
+      in: query
+      description: 開始位置
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+
+    field_list:
+      name: field_list
+      in: query
+      description: 返却するフィールドのカンマ区切り
+      schema: { type: string }
+
+    search_post:
+      name: search
+      in: query
+      description: 追加の post-process search を適用
+      schema: { type: string }
+
+    time_format:
+      name: time_format
+      in: query
+      description: "（`_time` のフォーマット）"
+      schema:
+        type: string
+        default: '%Y-%m-%dT%H:%M:%S%z'
+
+  responses:
+    BadRequest:
+      description: リクエスト不正
+    Unauthorized:
+      description: 認証が必要
+    Forbidden:
+      description: 権限不足
+    NotFound:
+      description: 対象なし
+
+  schemas:
+    ManagementResponse:
+      type: object
+      description: Splunk 管理RESTの一般的な応答形
+      additionalProperties: true
+      example:
+        entry:
+          - name: search
+            content:
+              sid: "1700000000.1"
+              dispatchState: "DONE"
+
+    SearchResults:
+      type: object
+      description: 検索結果（`output_mode=json` の例）
+      properties:
+        preview: { type: boolean }
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      example:
+        preview: false
+        fields:
+          - { name: _time }
+          - { name: host }
+        results:
+          - { _time: "2025-08-14T10:00:00+0900", host: "splunk001", count: 5 }
