@@ -1,0 +1,52 @@
+[
+  {
+    "case_id": "good_01",
+    "prompt": "以下の学生情報と企業情報を根拠に、学生に向けた魅力的なオファー推薦文を日本語で200字以内で生成してください。",
+    "student": {
+      "id": "S001",
+      "skills": ["Python", "SQL", "機械学習(基礎)", "データ分析"],
+      "projects": [
+        "ECの需要予測(時系列)をPythonで実装",
+        "学内ハッカソンでレコメンドのプロトタイプを作成"
+      ],
+      "preferences": ["裁量が大きい", "少人数チーム", "実サービスに近い開発"]
+    },
+    "company": {
+      "id": "C001",
+      "name": "FinNova",
+      "domain": "FinTech",
+      "role": "データサイエンスインターン",
+      "tech": ["Python", "dbt", "BigQuery"],
+      "mission": "与信の高度化で中小企業の資金調達を前進させる",
+      "culture": ["少数精鋭", "A/B検証", "スピード重視"]
+    },
+    "context": "学生: Python/SQL/機械学習基礎。EC需要予測(時系列)をPython実装。レコメンド試作。裁量大・少人数・実サービス志向。企業FinNova: FinTech。与信高度化。データサイエンスインターン。Python/dbt/BigQuery。少数精鋭・A/B検証・スピード重視。",
+    "generated": "Pythonでの需要予測PJ経験は、FinNovaの与信モデル改善に直結します。少数精鋭でA/B検証を高速に回す文化も志向に合致。実データで価値検証しながら、実装力を伸ばしませんか？",
+    "reference": "Pythonでの需要予測経験を、FinNovaの与信高度化に活かせます。少数精鋭でA/B検証を回す環境で、実データを使った価値検証に挑戦しませんか？"
+  },
+  {
+    "case_id": "bad_01",
+    "prompt": "以下の学生情報と企業情報を根拠に、学生に向けた魅力的なオファー推薦文を日本語で200字以内で生成してください。",
+    "student": {
+      "id": "S002",
+      "skills": ["Python", "統計(基礎)", "データ可視化"],
+      "projects": [
+        "授業で回帰分析を実装",
+        "学内データを可視化してレポート作成"
+      ],
+      "preferences": ["学びが多い", "メンターがいる"]
+    },
+    "company": {
+      "id": "C002",
+      "name": "RetailPulse",
+      "domain": "RetailTech",
+      "role": "データアナリストインターン",
+      "tech": ["Python", "Looker"],
+      "mission": "店舗オペレーションの最適化",
+      "culture": ["メンタリング", "ドキュメント重視"]
+    },
+    "context": "学生: Python/統計基礎/可視化。回帰分析実装。学内データ可視化レポート。学び・メンター志向。企業RetailPulse: RetailTech。店舗最適化。データアナリストインターン。Python/Looker。メンタリング・ドキュメント重視。",
+    "generated": "AWS認定とTOEIC900の強みを活かし、RetailPulseでグローバル案件の分析をリードできます。Looker×Pythonで店舗最適化を推進し、メンターのもと急成長しませんか？",
+    "reference": "Pythonと可視化の経験を活かし、RetailPulseでLooker×分析に挑戦できます。メンタリングとドキュメント文化のもと、回帰分析など基礎を実務で伸ばしませんか？"
+  }
+]
