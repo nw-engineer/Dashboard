@@ -1,0 +1,43 @@
+gantt
+    title deepevalを使ったLLM評価：テストスクリプト実装タスク
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+    excludes    weekends
+
+    section 0. 前提整理（最小）
+    評価設定の固定化（評価軸・メトリックは確定済みなので形式だけ） :milestone, m0, 2026-02-18, 0d
+    入出力スキーマ定義（入力JSON/生成文/メタ情報/評価リクエスト）   :a1, 2026-02-18, 1d
+
+    section 1. 開発土台
+    リポジトリ雛形 & 実行方法（CLI/設定ファイル）                  :a2, after a1, 1d
+    依存導入（deepeval, http client, dotenv, logging等）            :a3, after a2, 1d
+    設定管理（APIエンドポイント/キー/タイムアウト/リトライ）         :a4, after a3, 1d
+
+    section 2. 生成API呼び出し（LLM生成の取得）
+    生成APIクライアント実装（リクエスト送信・レスポンス取得）        :crit, b1, after a4, 2d
+    送信JSONの保存（入力の完全保持・マスク方針）                     :b2, after b1, 1d
+    生成文・メタ情報の抽出（usage/latency/model/version等）          :b3, after b1, 1d
+
+    section 3. Input+Outputの結合（評価用データ化）
+    結合レコード生成（Input JSON + 生成文 + メタ）                   :crit, c1, after b2, 1d
+    永続化（JSONL/CSV/DBのいずれか：まずはJSONL推奨）                :c2, after c1, 1d
+    冪等実行（同一入力の重複回避/再実行で上書き）                    :c3, after c2, 1d
+
+    section 4. deepeval評価（メトリック確定済み）
+    deepeval用TestCase/評価入力へのマッピング                         :crit, d1, after c1, 2d
+    評価実行（ローカル実行 or 評価用API送信のどちらにも対応できる形）  :crit, d2, after d1, 2d
+    結果パース＆集計（スコア/根拠/失敗理由/サマリ）                   :d3, after d2, 1d
+    閾値判定・失敗時の出力（CI向けexit code、レポート生成）           :d4, after d3, 1d
+
+    section 5. 信頼性（実運用に必要）
+    リトライ/バックオフ/レート制御（生成API・評価側API）              :e1, after d2, 1d
+    例外系（タイムアウト/不正JSON/空出力/部分失敗）ハンドリング         :e2, after e1, 1d
+    ロギング整備（相関ID、入力参照、評価参照、再現性）                :e3, after e2, 1d
+
+    section 6. テスト & ドキュメント
+    ユニットテスト（APIクライアント/結合/マッピング）                 :f1, after c3, 2d
+    疎通テスト（ステージングでE2E：生成→結合→評価）                  :crit, f2, after e3, 1d
+    README/Runbook（使い方、設定例、期待出力、トラブルシュート）       :f3, after f2, 1d
+
+    section 7. マイルストーン
+    テストスクリプト完成（生成→結合→評価の一括実行）                  :milestone, m1, after f3, 0d
