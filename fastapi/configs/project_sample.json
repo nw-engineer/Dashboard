@@ -1,0 +1,17 @@
+{
+  "important_fields_spec": "/mnt/data/orchestrator_configurable/configs/important_fields_sample.json",
+  "consistency_engine": {
+    "n_samples": 3,
+    "sim_threshold": 0.8,
+    "regen_endpoint": {
+      "env": "GEN_API_URL"
+    }
+  },
+  "rule_engine": {
+    "max_output_len": 200,
+    "require_last_updated": true,
+    "freshness_months": 12,
+    "require_user_input": true,
+    "allow_definitive_words": false
+  }
+}

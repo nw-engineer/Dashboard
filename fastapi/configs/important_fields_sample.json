@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "name": "must_mention_it_skills",
+      "mandatory": true,
+      "source": "context",
+      "path": "talent.skills_experiences.it_skills[].skill_name",
+      "mode": "must_mention_any",
+      "min_count": 1,
+      "normalize_nfkc": true,
+      "normalize_lower": true
+    },
+    {
+      "name": "must_mention_company_name",
+      "mandatory": true,
+      "source": "context",
+      "path": "company.basic.name",
+      "mode": "must_mention_any",
+      "min_count": 1,
+      "normalize_nfkc": true,
+      "normalize_lower": false
+    }
+  ]
+}
