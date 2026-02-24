@@ -1,0 +1,30 @@
+{
+  "consistency_terms": {
+    "paths": [
+      "talent.skills_experiences.it_skills[]",
+      "talent.skills_experiences.software_skill_other",
+      "talent.technical_keywords",
+      "company.basic.name",
+      "company.basic.position[]",
+      "company.basic.head_office_pref",
+      "company.basic.branch_office_pref[]"
+    ],
+    "split_regex": "[,、\\s]+",
+    "normalize_nfkc": true,
+    "normalize_lower": true,
+    "max_terms": 40
+  },
+  "must_mention_terms": {
+    "paths": [
+      "talent.skills_experiences.it_skills[]",
+      "talent.skills_experiences.software_skill_other",
+      "talent.technical_keywords"
+    ],
+    "mode": "any",
+    "min_count": 1,
+    "mandatory": true,
+    "split_regex": "[,、\\s]+",
+    "normalize_nfkc": true,
+    "normalize_lower": true
+  }
+}
