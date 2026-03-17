@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -eu
+
+LOGDIR="$HOME/scraplogs"
+mkdir -p "$LOGDIR"
+
+TS="$(date +%Y%m%d-%H%M%S)"
+OUT="$LOGDIR/session-$TS.log"
+TIMING="$LOGDIR/session-$TS.timing"
+
+echo "worklog start: $OUT"
+exec script -q -f -O "$OUT" -T "$TIMING"
