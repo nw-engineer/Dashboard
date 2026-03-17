@@ -1,0 +1,191 @@
+# ===== scrap memo helper: start =====
+
+# 背景コンテキスト
+export SCRAP_CTX=""
+
+# 内部制御用
+__SCRAP_ENABLED=1
+__SCRAP_IN_HOOK=0
+__SCRAP_LAST_HISTNO=0
+
+# 背景を設定
+ctx() {
+  SCRAP_CTX="$*"
+  if [ -n "$SCRAP_CTX" ]; then
+    printf '# 背景: %s\n' "$SCRAP_CTX"
+  else
+    printf '# 背景: (クリア)\n'
+  fi
+}
+
+# 背景をクリア
+ctxclear() {
+  SCRAP_CTX=""
+  printf '# 背景: (クリア)\n'
+}
+
+# 手動メモ
+memo() {
+  printf '# メモ: %s\n' "$*"
+}
+
+# コマンドから注釈文を作る
+__scrap_make_note() {
+  local cmd="$1"
+
+  # 前後の空白をざっくり整理
+  cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+  cmd="${cmd%"${cmd##*[![:space:]]}"}"
+
+  # 空やコメントは無視
+  [ -z "$cmd" ] && return 1
+  [[ "$cmd" == \#* ]] && return 1
+
+  # 自分自身は無視
+  case "$cmd" in
+    ctx\ *|ctxclear|memo\ * ) return 1 ;;
+  esac
+
+  # よく使うものから順に判定
+  if [[ "$cmd" =~ ^docker[[:space:]]+ps([[:space:]]*\|[[:space:]]*grep[[:space:]]+(.+))?$ ]]; then
+    if [ -n "${BASH_REMATCH[2]}" ]; then
+      printf '%s が付くコンテナに絞って起動状態を確認' "${BASH_REMATCH[2]}"
+    else
+      printf '稼働中のコンテナ一覧を確認'
+    fi
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^docker[[:space:]]+logs[[:space:]]+([^[:space:]]+) ]]; then
+    printf '%s コンテナのログを確認して異常の有無を調査' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^docker[[:space:]]+exec[[:space:]].*[[:space:]]+([^[:space:]]+)[[:space:]]+(bash|sh)$ ]]; then
+    printf '%s コンテナの中に入って内部状態を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^docker[[:space:]]+inspect[[:space:]]+([^[:space:]]+) ]]; then
+    printf '%s の設定や詳細情報を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^systemctl[[:space:]]+status[[:space:]]+([^[:space:]]+) ]]; then
+    printf '%s サービスの状態を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^systemctl[[:space:]]+(start|stop|restart|reload)[[:space:]]+([^[:space:]]+) ]]; then
+    printf '%s サービスを %s して状態変化を確認' "${BASH_REMATCH[2]}" "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^journalctl[[:space:]]+-u[[:space:]]+([^[:space:]]+) ]]; then
+    printf '%s サービスの journal ログを確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^ps[[:space:]]+aux[[:space:]]*\|[[:space:]]*grep[[:space:]]+(.+) ]]; then
+    printf '%s に関連するプロセスの有無を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^grep[[:space:]]+-i[[:space:]]+([^[:space:]]+)[[:space:]]+(.+) ]]; then
+    printf '%s を含む行を抽出して内容を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^tail[[:space:]]+-f[[:space:]]+(.+) ]]; then
+    printf '%s を監視してリアルタイムに変化を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^tail[[:space:]]+-n[[:space:]]+([0-9]+)[[:space:]]+(.+) ]]; then
+    printf '%s の末尾 %s 行を確認' "${BASH_REMATCH[2]}" "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^cat[[:space:]]+(.+) ]]; then
+    printf '%s の内容を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^less[[:space:]]+(.+) ]]; then
+    printf '%s を開いて内容を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^ss[[:space:]]+-lntp ]]; then
+    printf '待受中ポートと関連プロセスを確認'
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^netstat[[:space:]]+-lntp ]]; then
+    printf '待受中ポートと関連プロセスを確認'
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^kubectl[[:space:]]+get[[:space:]]+pods ]]; then
+    printf 'Pod の一覧と状態を確認'
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^kubectl[[:space:]]+describe[[:space:]]+pod[[:space:]]+([^[:space:]]+) ]]; then
+    printf 'Pod %s の詳細状態を確認' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^kubectl[[:space:]]+logs[[:space:]]+([^[:space:]]+) ]]; then
+    printf 'Pod %s のログを確認して異常の有無を調査' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$cmd" =~ ^cd[[:space:]]+(.+) ]]; then
+    printf '%s に移動' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  # 汎用フォールバック
+  printf 'コマンドを実行して状態を確認'
+  return 0
+}
+
+# 実行直前に注釈を出す
+__scrap_preexec() {
+  [ "$__SCRAP_ENABLED" -eq 1 ] || return 0
+  [ "$__SCRAP_IN_HOOK" -eq 0 ] || return 0
+
+  # 補完中は無視
+  [ -n "$COMP_LINE" ] && return 0
+
+  __SCRAP_IN_HOOK=1
+
+  local hist_line hist_no cmd note
+  hist_line="$(history 1 2>/dev/null)"
+  hist_no="${hist_line%%[[:space:]]*}"
+  cmd="${hist_line#*[[:space:]][[:space:]]}"
+
+  # 同じ履歴番号で何度も出さない
+  if [ -n "$hist_no" ] && [ "$hist_no" = "$__SCRAP_LAST_HISTNO" ]; then
+    __SCRAP_IN_HOOK=0
+    return 0
+  fi
+  __SCRAP_LAST_HISTNO="$hist_no"
+
+  note="$(__scrap_make_note "$cmd")" || {
+    __SCRAP_IN_HOOK=0
+    return 0
+  }
+
+  if [ -n "$SCRAP_CTX" ]; then
+    printf '# 背景: %s\n' "$SCRAP_CTX"
+  fi
+  printf '# 注釈: %s\n' "$note"
+
+  __SCRAP_IN_HOOK=0
+}
+
+trap '__scrap_preexec' DEBUG
+
+# ===== scrap memo helper: end =====
